@@ -3,6 +3,7 @@ package testh2img;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
 import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;
@@ -10,6 +11,7 @@ import java.io.File;
 import java.io.IOException;
 
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReadParam;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
@@ -40,10 +42,12 @@ public class ScreenshotUtils extends JPanel {
         jsDimension.append("if(document.documentElement) {").append(LS);
         jsDimension.append(
                         "  width = Math.max(width, document.documentElement.scrollWidth);")
+                        //"  width = Math.max(width, document.documentElement.clientWidth);")
                         //"  width = document.documentElement.scrollWidth;")
                 .append(LS);
         jsDimension.append(
                         "  height = Math.max(height, document.documentElement.scrollHeight);")
+                        //"  height = Math.max(height, document.documentElement.clientHeight);")
                         //"  height = document.documentElement.scrollHeight;")
                 .append(LS);
         jsDimension.append("}").append(LS);
@@ -56,10 +60,12 @@ public class ScreenshotUtils extends JPanel {
         jsDimension.append("if(document.body.scrollWidth) {").append(LS);  
         jsDimension.append(  
                 "  width = Math.max(width, document.body.scrollWidth);")
+                //"  width = Math.max(width, document.body.clientWidth);")
                 //"  width = document.body.scrollWidth;")
                 .append(LS);  
-        jsDimension.append(  
+        jsDimension.append(
                 "  height = Math.max(height, document.body.scrollHeight);")
+                //"  height = Math.max(height, document.body.clientHeight);")
                 //"  height = document.body.scrollHeight;") 
                 .append(LS);  
         jsDimension.append("}").append(LS);  
@@ -69,6 +75,8 @@ public class ScreenshotUtils extends JPanel {
     public ScreenshotUtils(final String url, final int maxWidth, final int maxHeight) {
         super(new BorderLayout());
         JPanel webBrowserPanel = new JPanel(new BorderLayout());
+        final String fileNamePrefix = "H:" + FS + "temp" + FS + "html2images" + FS + "10616";
+        final String pngPostfix = ".png";
         final String fileName = "H:" + FS + "temp" + FS + "html2images" + FS + System.currentTimeMillis() + ".png";
         final JWebBrowser webBrowser = new JWebBrowser(null);
         webBrowser.setBarsVisible(false);
@@ -97,6 +105,7 @@ public class ScreenshotUtils extends JPanel {
                     //更改尺寸
                     imageSize.height = imageSize.height*imageSize.width/1280;
                     imageSize.width = 1280;
+                    
                     nativeComponent.setSize(imageSize);
                     BufferedImage image = new BufferedImage(imageSize.width,
                             imageSize.height, BufferedImage.TYPE_INT_RGB);
@@ -121,7 +130,52 @@ public class ScreenshotUtils extends JPanel {
                     }
                     try {
                         // 输出图像  
-                        ImageIO.write(image, "png", new File(fileName));
+                        //ImageIO.write(image, "png", new File(fileName));
+                        
+                        //输出多张图片
+                        int perHight = 300;
+                        for(int startHight = 0 ; startHight < imageSize.height ; startHight+=perHight){
+                        	BufferedImage newImage;
+                        	if(startHight + perHight <= imageSize.height ){
+                        		newImage = image.getSubimage(0, startHight, imageSize.width-20, perHight);//去滚动条水平-20
+                        	}else{
+                        		newImage = image.getSubimage(0, startHight, imageSize.width-20, imageSize.height-startHight);
+                        	}
+                        	
+                        	//判断是否纯色
+                        	int colorWidth = newImage.getWidth()-20;
+                        	int colorHeight = newImage.getHeight();
+                        	int pixel = 0;//像素值
+                        	int pixelTemp = 0;//对比像素值
+                        	int pixelCount = 0;//相同像素计数
+                        	boolean notPure = true;//纯色标志，纯色不保存
+                        	for(int i = 1 ; i<colorWidth ; i++){
+                        		for(int j = 1 ; j<colorHeight ; j++){
+                        			pixel = newImage.getRGB(i, j);
+                        			if(pixel==pixelTemp){
+                        				pixelCount++;
+                        			}else{
+                        				pixelCount=0;
+                        			}
+                        			pixelTemp = pixel;
+                        		}
+                        	}
+                        	System.out.println(pixelCount);
+                        	System.out.println(colorWidth*colorHeight);
+                        	//如果连续相同的像素点大于设定的百分比的话，就判定为是纯色的图片，此处设定全相同
+                			if((float)pixelCount/(colorWidth*colorHeight)>=0.95){
+                				notPure=false;
+                				System.out.println("纯色");
+                			}else{
+                				System.out.println("非纯色");
+                			}
+                        	if(notPure){
+                        		String newFileName = fileNamePrefix + "_" + startHight + pngPostfix;
+                            	ImageIO.write(newImage, "png", new File(newFileName));
+                        	}
+                        	
+                        }
+                        
                     } catch (IOException ex) {
                         ex.printStackTrace();
                     }  
@@ -141,10 +195,10 @@ public class ScreenshotUtils extends JPanel {
                 JFrame frame = new JFrame("以DJ组件保存指定网页截图");
                 // 加载指定页面，最大保存为640x480的截图  
                 frame.getContentPane().add(
-                        new ScreenshotUtils("file:///H:/temp/html2images/10616.html", 1280, 720),
+                        new ScreenshotUtils("file:///H:/temp/html2images/10616.html", 1326, 720),
                 		//new ScreenshotUtils("http://ask.testfan.cn/question/277", 1280, 720),
                 		BorderLayout.CENTER);
-                frame.setSize(1280, 720);
+                frame.setSize(1326, 720);
                 // 仅初始化，但不显示  
                 frame.invalidate();
                 frame.pack();
